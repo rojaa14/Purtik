@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Glowing accent path for TikTok-style offset vibe (PuretikTeal) -->
+    <path
+        android:fillColor="#25F4EE"
+        android:pathData="M 52,28 L 52,64 L 38,50 L 32,56 L 52,76 L 72,56 L 66,50 L 52,64" />
+
+    <!-- Main action path overlay (PuretikRed) -->
+    <path
+        android:fillColor="#FE2C55"
+        android:pathData="M 56,24 L 56,60 L 42,46 L 36,52 L 56,72 L 76,52 L 70,46 L 56,60" />
+
+    <!-- Clean white base line highlighting disk block -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 30,78 L 78,78 L 78,82 L 30,82 Z" />
+
+</vector>

@@ -383,7 +383,7 @@ fun SplashScreen() {
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = "OFFLINE DOWNLOAD MANAGER",
+                text = "LIVE DOWNLOAD MANAGER",
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = FontWeight.Medium,
                     letterSpacing = 2.5.sp
@@ -479,7 +479,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
     val clipboardManager = LocalClipboardManager.current
     val videos by viewModel.videosFlow.collectAsStateWithLifecycle()
     val collections by viewModel.collectionsFlow.collectAsStateWithLifecycle()
-    val downloadSimState = viewModel.downloadSimulation
+    val downloadSimState = viewModel.downloadProgressState
 
     Scaffold(
         bottomBar = { PuretikBottomBar(PuretikScreen.Home, viewModel) }
@@ -525,7 +525,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "OFFLINE",
+                                    text = "ONLINE",
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                     color = SecondaryTeal,
                                     fontSize = 9.sp
@@ -568,7 +568,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Paste your TikTok link below to strip branding watermark offline.",
+                            text = "Paste your TikTok link below to save watermark-free streams cleanly.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -632,7 +632,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
 
                             // Raw download button
                             Button(
-                                onClick = { viewModel.startUrlSimulationDownload(viewModel.urlInput) },
+                                onClick = { viewModel.startUrlDownload(viewModel.urlInput) },
                                 modifier = Modifier
                                     .weight(1.2f)
                                     .height(44.dp)
@@ -653,7 +653,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
                     }
                 }
 
-                // Downloading simulation progress overlay card
+                // Online download progress overlay card
                 if (downloadSimState != null) {
                     Spacer(modifier = Modifier.height(18.dp))
                     Card(
@@ -700,7 +700,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                     )
                                 }
-                                IconButton(onClick = { viewModel.dismissDownloadSimulation() }) {
+                                IconButton(onClick = { viewModel.dismissDownloadProgress() }) {
                                     Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
                                 }
                             }
@@ -737,9 +737,9 @@ fun DashboardController(viewModel: PuretikViewModel) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
+                                  ) {
                                     Text(
-                                        text = "Speed Preset: ${viewModel.presetEngineSpeed}",
+                                        text = "Mode: Live Engine",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                                     )
@@ -771,7 +771,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
                     val avgLikes = if (videos.isNotEmpty()) videos.sumOf { it.likeCount } / videos.size else 0L
 
                     QuickStatsCard(
-                        title = "Offline Library",
+                        title = "Local Library",
                         value = "$totalDownloads Posts",
                         subtext = "${collections.size} Folders",
                         icon = Icons.Default.List,
@@ -830,7 +830,7 @@ fun DashboardController(viewModel: PuretikViewModel) {
                             )
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "Your Offline Catalog is Empty",
+                                text = "Your Saved Catalog is Empty",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -1089,7 +1089,7 @@ fun LibraryController(viewModel: PuretikViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Offline Library",
+                        text = "Local Library",
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Black),
                         color = MaterialTheme.colorScheme.onBackground
                     )
@@ -1206,7 +1206,7 @@ fun LibraryController(viewModel: PuretikViewModel) {
                     video = activeDetails,
                     onClose = {
                         viewModel.activeVideoForDetails = null
-                        viewModel.isSimulatedPlayerPlaying = false
+                        viewModel.isVideoPlayerPlaying = false
                     },
                     viewModel = viewModel
                 )
@@ -1385,8 +1385,8 @@ fun SimulatedPlaybackOverlay(
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
-    var playStatus by remember { mutableStateOf(viewModel.isSimulatedPlayerPlaying) }
-    var playbackProgress by remember { mutableStateOf(viewModel.simulatedPlaybackPosition) }
+    var playStatus by remember { mutableStateOf(viewModel.isVideoPlayerPlaying) }
+    var playbackProgress by remember { mutableStateOf(viewModel.videoPlaybackPosition) }
 
     LaunchedEffect(playStatus) {
         if (playStatus) {
@@ -1503,7 +1503,7 @@ fun SimulatedPlaybackOverlay(
                                 .background(PuretikRed.copy(alpha = 0.85f))
                                 .clickable {
                                     playStatus = !playStatus
-                                    viewModel.isSimulatedPlayerPlaying = playStatus
+                                    viewModel.isVideoPlayerPlaying = playStatus
                                 },
                             contentAlignment = Alignment.Center
                         ) {
@@ -1518,7 +1518,7 @@ fun SimulatedPlaybackOverlay(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = if (playStatus) "Streaming Watermark-Free Cache mp4..." else "Simulated Player Ready",
+                            text = if (playStatus) "Streaming Watermark-Free Cache mp4..." else "Analytical Player Ready",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.7f)
                         )
@@ -1532,7 +1532,7 @@ fun SimulatedPlaybackOverlay(
                     value = playbackProgress,
                     onValueChange = {
                         playbackProgress = it
-                        viewModel.simulatedPlaybackPosition = it
+                        viewModel.videoPlaybackPosition = it
                     },
                     colors = SliderDefaults.colors(
                         thumbColor = PuretikRed,
@@ -1674,7 +1674,7 @@ fun SimulatedPlaybackOverlay(
                         onClick = {
                             viewModel.editingVideo = video
                             viewModel.activeVideoForDetails = null
-                            viewModel.isSimulatedPlayerPlaying = false
+                            viewModel.isVideoPlayerPlaying = false
                             viewModel.navigateTo(PuretikScreen.AddEditVideo)
                         },
                         modifier = Modifier.weight(1f),
@@ -1830,7 +1830,7 @@ fun TrackersController(viewModel: PuretikViewModel) {
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Catalog and track video creators offline. Log and audit followers growth over simple local SQLite database.",
+                                text = "Catalog and track video creators. Log and audit follower metrics with our secure local database tracker.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
                                 textAlign = TextAlign.Center,
@@ -2327,7 +2327,7 @@ fun AddEditVideoController(viewModel: PuretikViewModel) {
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "Populate raw statistical values offline to build custom simulation models.",
+                text = "Populate raw statistical values to organize and track custom video analytics.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
             )
@@ -2556,7 +2556,7 @@ fun AddEditCreatorController(viewModel: PuretikViewModel) {
             Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Offline Watch Registry",
+                text = "Creator Monitor Registry",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -2781,63 +2781,6 @@ fun SettingsController(viewModel: PuretikViewModel) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Download simulation speed preset modifiers
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Simulation Pacing Presets",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = "Adjust ticks delay while stripping watermarks to see process steps.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    val speedPresets = listOf("Fast", "Normal", "Eco")
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        speedPresets.forEach { speed ->
-                            val isSel = viewModel.presetEngineSpeed == speed
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSel) PuretikRed else MaterialTheme.colorScheme.background)
-                                    .border(
-                                        1.dp,
-                                        if (isSel) PuretikRed else MaterialTheme.colorScheme.outline,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .clickable { viewModel.presetEngineSpeed = speed }
-                                    .padding(vertical = 10.dp)
-                                    .weight(1f),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = speed,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Fast actions (Mock load & Wipe)
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -2938,7 +2881,7 @@ fun SettingsController(viewModel: PuretikViewModel) {
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "Puretik is an industry-grade, lightweight and stable offline-first TikTok catalog and custom metrics analyzer. Strip watermarks via mock simulation algorithms, build library watchlists and customize strategic profile details with ease.",
+                        text = "Puretik is an industry-grade, lightweight and stable TikTok catalog and custom metrics analyzer. Download and parse watermark-free video streams directly from live gateways, build library watchlists and customize strategic profile details with ease.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         lineHeight = 18.sp
@@ -2963,7 +2906,7 @@ fun SettingsController(viewModel: PuretikViewModel) {
         AlertDialog(
             onDismissRequest = { openConfirmationWipe = false },
             title = { Text("Confirm Wipe Cache?") },
-            text = { Text("This will delete all 100% offline data inside SQLite completely. This action cannot be undone.") },
+            text = { Text("This will delete all local data inside SQLite completely. This action cannot be undone.") },
             confirmButton = {
                 TextButton(
                     onClick = {

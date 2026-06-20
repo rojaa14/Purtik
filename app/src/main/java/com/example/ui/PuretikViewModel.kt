@@ -39,7 +39,7 @@ enum class PuretikScreen {
     Settings    // Speed modifiers, clear logs, load premium mock collections
 }
 
-data class SimulatedDownloadState(
+data class DownloadProgressState(
     val url: String,
     val progress: Int,
     val stepDescription: String,
@@ -86,22 +86,19 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
     var creatorSearchQuery by mutableStateOf("")
     var selectedCategoryFilter by mutableStateOf("All")
 
-    // UI and Simulation States
+    // UI and Download States
     var urlInput by mutableStateOf("")
-    var downloadSimulation by mutableStateOf<SimulatedDownloadState?>(null)
+    var downloadProgressState by mutableStateOf<DownloadProgressState?>(null)
     private var downloadJob: Job? = null
 
     // Real Online State Variables for custom resolutions and live parsing
     var showResolutionSelector by mutableStateOf(false)
     var activeFetchedVideoData by mutableStateOf<com.example.network.TikWmVideoData?>(null)
 
-    // Speed Preset Engine Configuration ("Fast" = 10ms ticks, "Normal" = 20ms ticks, "Eco" = 40ms)
-    var presetEngineSpeed by mutableStateOf("Fast")
-
     // Selected Details & Active Editing Elements
     var activeVideoForDetails by mutableStateOf<DownloadedVideo?>(null)
-    var isSimulatedPlayerPlaying by mutableStateOf(false)
-    var simulatedPlaybackPosition by mutableStateOf(0f)
+    var isVideoPlayerPlaying by mutableStateOf(false)
+    var videoPlaybackPosition by mutableStateOf(0f)
 
     var editingVideo by mutableStateOf<DownloadedVideo?>(null)
     var editingCreator by mutableStateOf<TrackedCreator?>(null)
@@ -186,10 +183,10 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Trigger Real Online TikTok Video Details Fetch
-    fun startUrlSimulationDownload(customUrl: String) {
+    fun startUrlDownload(customUrl: String) {
         val trimmedUrl = customUrl.trim()
         if (trimmedUrl.isBlank()) {
-            downloadSimulation = SimulatedDownloadState(
+            downloadProgressState = DownloadProgressState(
                 url = "",
                 progress = 0,
                 stepDescription = "",
@@ -199,7 +196,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
         }
 
         if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
-            downloadSimulation = SimulatedDownloadState(
+            downloadProgressState = DownloadProgressState(
                 url = trimmedUrl,
                 progress = 0,
                 stepDescription = "",
@@ -208,7 +205,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
-        downloadSimulation = SimulatedDownloadState(
+        downloadProgressState = DownloadProgressState(
             url = trimmedUrl,
             progress = 5,
             stepDescription = "Bypassing firewalls and connecting to TikWM servers...",
@@ -226,9 +223,9 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
                     if (response.code == 0 && response.data != null) {
                         activeFetchedVideoData = response.data
                         showResolutionSelector = true
-                        downloadSimulation = null // Hide analyzing Loader to present the Option Dialog
+                        downloadProgressState = null // Hide analyzing Loader to present the Option Dialog
                     } else {
-                        downloadSimulation = SimulatedDownloadState(
+                        downloadProgressState = DownloadProgressState(
                             url = trimmedUrl,
                             progress = 0,
                             stepDescription = "",
@@ -237,62 +234,13 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             } catch (e: Exception) {
-                // If direct network fails, let's retry with safe simulated proxy to optimize reliability
                 launch(kotlinx.coroutines.Dispatchers.Main) {
-                    downloadSimulation = downloadSimulation?.copy(
-                        progress = 30,
-                        stepDescription = "Gateway rate-limited. Activating proxy bypass..."
-                    )
-                }
-                delay(600)
-                launch(kotlinx.coroutines.Dispatchers.Main) {
-                    downloadSimulation = downloadSimulation?.copy(
-                        progress = 75,
-                        stepDescription = "Bypassed successfully! Finalizing clean cache stream..."
-                    )
-                }
-                delay(600)
-                // Fall back gracefully to pristine high-fidelity generated entries so the app NEVER stops functioning!
-                val handleExtracted = extractHandleFromUrl(trimmedUrl)
-                val nameExtracted = handleExtracted.removePrefix("@")
-                    .replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-
-                val viewVal = Random.nextLong(250_000, 9_000_000)
-                val likeVal = (viewVal * Random.nextDouble(0.06, 0.15)).toLong()
-                val commentVal = (likeVal * Random.nextDouble(0.02, 0.08)).toLong()
-                val shareVal = (likeVal * Random.nextDouble(0.01, 0.05)).toLong()
-                val durationSec = Random.nextInt(15, 95)
-                val sizeMb = Random.nextDouble(4.1, 24.8)
-
-                val fallBackVideo = DownloadedVideo(
-                    url = trimmedUrl,
-                    title = "Bypassed Video #${listOf("foryou", "viral", "creative", "dance").random()} with direct CDN link",
-                    authorName = nameExtracted,
-                    authorHandle = handleExtracted,
-                    viewCount = viewVal,
-                    likeCount = likeVal,
-                    commentCount = commentVal,
-                    shareCount = shareVal,
-                    duration = durationSec,
-                    fileSizeMb = String.format("%.2f", sizeMb).toDoubleOrNull() ?: sizeMb,
-                    downloadProgress = 100,
-                    isDownloaded = true,
-                    localUri = "https://www.tikwm.com/api/?url=$trimmedUrl", // direct online link
-                    timestamp = System.currentTimeMillis(),
-                    collectionName = selectedCollectionFilter.let { if (it == "All" || it.isBlank()) "Trending" else it }
-                )
-
-                repository.insertVideo(fallBackVideo)
-
-                launch(kotlinx.coroutines.Dispatchers.Main) {
-                    downloadSimulation = SimulatedDownloadState(
+                    downloadProgressState = DownloadProgressState(
                         url = trimmedUrl,
-                        progress = 100,
-                        isRunning = false,
-                        isFinished = true,
-                        stepDescription = "Successfully saved! Proxy fallback generated clear entry."
+                        progress = 0,
+                        stepDescription = "",
+                        error = "Gateway extraction failed! Check internet connection. Detail: ${e.localizedMessage}"
                     )
-                    urlInput = ""
                 }
             }
         }
@@ -312,7 +260,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
         val fileName = "Puretik_${System.currentTimeMillis()}$ext"
 
         if (downloadUrl.isBlank()) {
-            downloadSimulation = SimulatedDownloadState(
+            downloadProgressState = DownloadProgressState(
                 url = urlInput,
                 progress = 0,
                 stepDescription = "",
@@ -321,7 +269,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
-        downloadSimulation = SimulatedDownloadState(
+        downloadProgressState = DownloadProgressState(
             url = downloadUrl,
             progress = 1,
             stepDescription = "Establishing connection stream of $resolutionType...",
@@ -337,7 +285,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
 
                 if (!response.isSuccessful) {
                     launch(kotlinx.coroutines.Dispatchers.Main) {
-                        downloadSimulation = SimulatedDownloadState(
+                        downloadProgressState = DownloadProgressState(
                             url = downloadUrl,
                             progress = 0,
                             stepDescription = "",
@@ -350,7 +298,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
                 val body = response.body
                 if (body == null) {
                     launch(kotlinx.coroutines.Dispatchers.Main) {
-                        downloadSimulation = SimulatedDownloadState(
+                        downloadProgressState = DownloadProgressState(
                             url = downloadUrl,
                             progress = 0,
                             stepDescription = "",
@@ -382,7 +330,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
 
                             // Throttle progress updates for smooth rendering
                             launch(kotlinx.coroutines.Dispatchers.Main) {
-                                downloadSimulation = downloadSimulation?.copy(
+                                downloadProgressState = downloadProgressState?.copy(
                                     progress = if (progressPercent >= 0) progressPercent else 50,
                                     stepDescription = "Streaming selected quality: ${bytesWritten / (1024 * 1024)}MB written..."
                                 )
@@ -418,7 +366,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
                 repository.insertVideo(finalVideo)
 
                 launch(kotlinx.coroutines.Dispatchers.Main) {
-                    downloadSimulation = downloadSimulation?.copy(
+                    downloadProgressState = downloadProgressState?.copy(
                         isRunning = false,
                         isFinished = true,
                         progress = 100,
@@ -428,7 +376,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
                 }
             } catch (e: Exception) {
                 launch(kotlinx.coroutines.Dispatchers.Main) {
-                    downloadSimulation = SimulatedDownloadState(
+                    downloadProgressState = DownloadProgressState(
                         url = downloadUrl,
                         progress = 0,
                         isRunning = false,
@@ -461,8 +409,8 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun dismissDownloadSimulation() {
-        downloadSimulation = null
+    fun dismissDownloadProgress() {
+        downloadProgressState = null
     }
 
     // Save customized catalog video (from Add/Edit Screen)
@@ -562,7 +510,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
             repository.deleteVideo(video)
             if (activeVideoForDetails?.id == video.id) {
                 activeVideoForDetails = null
-                isSimulatedPlayerPlaying = false
+                isVideoPlayerPlaying = false
             }
         }
     }
@@ -751,7 +699,7 @@ class PuretikViewModel(application: Application) : AndroidViewModel(application)
                 repository.deleteCreator(it)
             }
             urlInput = ""
-            downloadSimulation = null
+            downloadProgressState = null
         }
     }
 }
